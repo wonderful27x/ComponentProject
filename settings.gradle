@@ -1,0 +1,2 @@
+include ':app', ':order', ':personal', ':common', ':annotation', ':compiler', ':arouter_api'
+rootProject.name='WYComponentARouter'

@@ -1,0 +1,73 @@
+apply plugin: 'com.android.application'
+
+//赋值与引用
+def androidVersion = rootProject.ext.androidVersion
+def appId = rootProject.ext.appId
+def supportLib = rootProject.ext.dependencies
+
+android {
+    compileSdkVersion androidVersion.compileSdkVersion
+    buildToolsVersion androidVersion.buildToolsVersion
+    defaultConfig {
+        applicationId appId.app
+        minSdkVersion androidVersion.minSdkVersion
+        targetSdkVersion androidVersion.targetSdkVersion
+        versionCode androidVersion.versionCode
+        versionName androidVersion.versionName
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        // 这个方法接收三个非空的参数，第一个：确定值的类型，第二个：指定key的名字，第三个：传值（必须是String）
+        // 为什么需要定义这个？因为src代码中有可能需要用到跨模块交互，如果是组件化模块显然不行
+        // 切记：不能在android根节点，只能在defaultConfig或buildTypes节点下
+        buildConfigField("boolean", "isRelease", String.valueOf(isRelease))
+
+        // 在gradle文件中配置选项参数值（用于APT传参接收）
+        // 切记：必须写在defaultConfig节点下
+        javaCompileOptions {
+            annotationProcessorOptions {
+                includeCompileClasspath true
+                arguments = [moduleName: project.getName(), packageNameForAPT: packageNameForAPT]
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    //配置资源文件路径，方便在测试和正式模式中选择是否将文件打包到apk
+    sourceSets {
+        main {
+            if (isRelease) {
+                java {
+                    exclude '**/debug/**'//过滤掉debug目录文件
+                }
+            }
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    //引入依赖
+    implementation 'androidx.appcompat:appcompat:1.1.0'
+    implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
+    supportLib.each { k, v -> implementation v }
+    testImplementation 'junit:junit:4.12'
+    androidTestImplementation 'androidx.test:runner:1.2.0'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
+
+    //发布版本时要使用集成化模式，因为需要打包整个项目apk，而组件是不能被依赖，需要转化
+    //不同的模式下组件化和集成化可以相互转化，具体看他们的gradle配置文件
+    if (isRelease) {
+        implementation project(':order')
+        implementation project(':personal')
+    }
+    //依赖公共基础库，这本身设计的就是集成化的子模块，不会转化为组件化，可以直接依赖
+    implementation project(':common')
+    implementation project(':annotation')
+    //依赖注解处理器
+    annotationProcessor project(':compiler')
+}

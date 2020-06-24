@@ -1,0 +1,82 @@
+//release为集成模式，需要打包整个项目apk，而只有library才能被依赖
+if (isRelease) {
+    apply plugin: 'com.android.library'
+} else {
+    apply plugin: 'com.android.application'
+}
+
+//赋值与引用
+def androidVersion = rootProject.ext.androidVersion
+def appId = rootProject.ext.appId
+def supportLib = rootProject.ext.dependencies
+
+android {
+    compileSdkVersion androidVersion.compileSdkVersion
+    buildToolsVersion androidVersion.buildToolsVersion
+
+
+    defaultConfig {
+        //集成化模式不能拥有applicationId,只有能独立运行的组件化模式才能拥有applicationId
+        if (!isRelease) {
+            applicationId appId.order
+        }
+        minSdkVersion androidVersion.minSdkVersion
+        targetSdkVersion androidVersion.targetSdkVersion
+        versionCode androidVersion.versionCode
+        versionName androidVersion.versionName
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        // 这个方法接收三个非空的参数，第一个：确定值的类型，第二个：指定key的名字，第三个：传值（必须是String）
+        // 为什么需要定义这个？因为src代码中有可能需要用到跨模块交互，如果是组件化模块显然不行
+        // 切记：不能在android根节点，只能在defaultConfig或buildTypes节点下
+        buildConfigField("boolean", "isRelease", String.valueOf(isRelease))
+
+        // 切记：必须写在defaultConfig节点下
+        javaCompileOptions {
+            annotationProcessorOptions {
+                includeCompileClasspath true
+                arguments = [moduleName:project.getName(),packageNameForAPT:packageNameForAPT]
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    //配置资源文件路径，方便在测试和正式模式中选择是否将文件打包到apk
+    sourceSets {
+        main {
+            if (isRelease) {
+                manifest.srcFile 'src/main/AndroidManifest.xml'  //配置manifest目录
+                java {
+                    exclude '**/debug/**'//过滤掉debug目录文件
+                }
+            } else {
+                manifest.srcFile 'src/main/debug/AndroidManifest.xml'  //配置manifest目录
+            }
+        }
+    }
+
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+
+    //引入依赖
+    implementation 'androidx.appcompat:appcompat:1.1.0'
+    implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
+    supportLib.each { k, v -> implementation v }
+    testImplementation 'junit:junit:4.12'
+    androidTestImplementation 'androidx.test:runner:1.2.0'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
+
+    implementation project(':common')
+    implementation project(':annotation')
+    //依赖注解处理器
+    annotationProcessor project(':compiler')
+}

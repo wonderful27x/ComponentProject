@@ -1,0 +1,28 @@
+apply plugin: 'java-library'
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    //引入注解处理服务
+    // 注册注解，并对其生成META-INF的配置信息，rc2在gradle5.0后有坑
+    // As-3.2.1 + gradle4.10.1-all + auto-service:1.0-rc2
+    // implementation 'com.google.auto.service:auto-service:1.0-rc2'
+
+    // As-3.4.1 + gradle5.1.1-all + auto-service:1.0-rc4
+    compileOnly'com.google.auto.service:auto-service:1.0-rc4'
+    annotationProcessor'com.google.auto.service:auto-service:1.0-rc4'
+
+    //引入javaPoet框架，这是辅助apt的，也可以不使用，这属于APT的第二种高级用法了
+    implementation "com.squareup:javapoet:1.9.0"
+
+    //引入注解，让注解处理器处理
+    implementation project(':annotation')
+}
+
+//使用utf8编码，解决控制台乱码问题
+tasks.withType(JavaCompile){
+    options.encoding = "UTF-8"
+}
+
+//JDK版本1.7
+sourceCompatibility = "7"
+targetCompatibility = "7"
